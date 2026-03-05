@@ -26,7 +26,7 @@ Project details
 
 How the code will be used
 
-Contact: buddhavarapurohith77@gmail.com
+Contact: buddhavarapurohith777@gmail.com
 
 Disclaimer
 
