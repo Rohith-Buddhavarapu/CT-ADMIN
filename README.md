@@ -1,20 +1,34 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+This repository contains the source code for CT ADMIN.
+The code is provided for viewing and learning purposes only.
 
-# Run and deploy your AI Studio app
+Copyright Notice
 
-This contains everything you need to run your app locally.
+© 2026 Rohith Buddhavarapu. All Rights Reserved.
 
-View your app in AI Studio: https://ai.studio/apps/2e3b4f3b-ba52-4b55-8ebe-cd0ecc057500
+This code and all associated files in this repository are copyright protected.
+Unauthorized copying, modification, distribution, or use of this code is strictly prohibited without explicit permission from the author.
 
-## Run Locally
+Permission to Use
 
-**Prerequisites:**  Node.js
+If you want to:
+Copy this code
+Use this code in your project
+Modify or distribute this code
 
+You must request permission from the author first.
+Please contact the author before using any part of this code.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+How to Request Permission
+Send a request with the following details:
+Your Name
+Purpose of use
+Project details
+
+How the code will be used
+
+Contact: buddhavarapurohith77@gmail.com
+
+Disclaimer
+
+This repository is shared for educational and reference purposes.
+The author is not responsible for any misuse of the code.
