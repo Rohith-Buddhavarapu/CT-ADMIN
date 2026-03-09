@@ -23,6 +23,7 @@ const ID_TYPES = [
 const VisitorManager: React.FC<VisitorManagerProps> = ({ visitors, setVisitors, user }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [photo, setPhoto] = useState<string | null>(null);
   const [resumeName, setResumeName] = useState<string | null>(null);
   
@@ -67,16 +68,40 @@ const VisitorManager: React.FC<VisitorManagerProps> = ({ visitors, setVisitors, 
 
   useEffect(() => {
     const initCamera = async () => {
-      if (isCameraActive && videoRef.current && !photo) {
+      if (isCameraActive && !photo) {
+        // Wait a bit to ensure videoRef is attached if it's not yet
+        if (!videoRef.current) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        if (!videoRef.current) return;
+
         try {
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+          }
           const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: 'user' } 
+            video: { facingMode: facingMode } 
           });
           streamRef.current = stream;
-          videoRef.current.srcObject = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.play().catch(e => console.error("Video play failed", e));
+          }
         } catch (err) {
           console.error("Camera access denied", err);
-          setIsCameraActive(false);
+          // Try fallback without facingMode if it failed
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            streamRef.current = stream;
+            if (videoRef.current) {
+              videoRef.current.srcObject = stream;
+              videoRef.current.play().catch(e => console.error("Video play failed", e));
+            }
+          } catch (fallbackErr) {
+            console.error("Fallback camera access denied", fallbackErr);
+            setIsCameraActive(false);
+          }
         }
       }
     };
@@ -86,7 +111,11 @@ const VisitorManager: React.FC<VisitorManagerProps> = ({ visitors, setVisitors, 
     return () => {
       stopCamera();
     };
-  }, [isCameraActive, photo]);
+  }, [isCameraActive, photo, facingMode]);
+
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+  };
 
   const stopCamera = () => {
     if (streamRef.current) {
@@ -351,19 +380,19 @@ const VisitorManager: React.FC<VisitorManagerProps> = ({ visitors, setVisitors, 
       </div>
 
       {showAddForm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
-           <div className="bg-white w-full max-w-4xl rounded-[2rem] md:rounded-[3rem] shadow-2xl p-6 md:p-12 relative animate-in zoom-in duration-300 my-8">
+        <div className="fixed inset-0 z-[150] flex items-start md:items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+           <div className="bg-white w-full max-w-4xl rounded-[2rem] md:rounded-[3rem] shadow-2xl p-4 md:p-12 relative animate-in zoom-in duration-300 my-4 md:my-8">
              <button 
                onClick={() => { setShowAddForm(false); resetForm(); }} 
-               className="absolute top-4 right-4 md:top-10 md:right-10 text-slate-500 hover:text-slate-900 transition p-3 hover:bg-slate-100 rounded-2xl z-50 bg-white/80 backdrop-blur-sm shadow-sm border border-slate-100"
+               className="absolute top-4 right-4 md:top-10 md:right-10 text-slate-500 hover:text-slate-900 transition p-2 md:p-3 hover:bg-slate-100 rounded-2xl z-50 bg-white/80 backdrop-blur-sm shadow-sm border border-slate-100"
              >
                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
              </button>
 
-             <div className="flex flex-col lg:flex-row gap-12">
-               <div className="flex-1 space-y-8">
+             <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+               <div className="flex-1 space-y-6 md:space-y-8">
                  <div>
-                   <h3 className="text-4xl font-black text-slate-900 mb-2 tracking-tight leading-none">Arrival Check-in</h3>
+                   <h3 className="text-2xl md:text-4xl font-black text-slate-900 mb-2 tracking-tight leading-none">Arrival Check-in</h3>
                    <p className="text-slate-500 font-medium tracking-tight">Enterprise Lobby Security Clearance</p>
                  </div>
 
@@ -456,8 +485,18 @@ const VisitorManager: React.FC<VisitorManagerProps> = ({ visitors, setVisitors, 
                    
                    {isCameraActive ? (
                      <div className="w-full space-y-4">
-                       <video ref={videoRef} autoPlay playsInline className="w-full h-56 object-cover rounded-2xl border-4 border-white shadow-2xl" />
-                       <button onClick={capturePhoto} className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] shadow-lg">Take Snapshot</button>
+                        <div className="relative">
+                          <video ref={videoRef} autoPlay playsInline className="w-full h-56 object-cover rounded-2xl border-4 border-white shadow-2xl" />
+                          <button 
+                            type="button" 
+                            onClick={toggleCamera}
+                            className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm p-2 rounded-xl shadow-lg border border-slate-100 text-indigo-600 hover:bg-white transition-all active:scale-95"
+                            title="Switch Camera"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M21 12c0-1.66-4-3-9-3s-9 1.34-9 3"/><path d="M3 5c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
+                          </button>
+                        </div>
+                        <button onClick={capturePhoto} className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] shadow-lg">Take Snapshot</button>
                      </div>
                    ) : photo ? (
                      <div className="w-full relative group">
