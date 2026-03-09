@@ -17,6 +17,7 @@ const AssetTracker: React.FC<AssetTrackerProps> = ({ assets, setAssets }) => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [historyAsset, setHistoryAsset] = useState<Asset | null>(null);
@@ -24,6 +25,7 @@ const AssetTracker: React.FC<AssetTrackerProps> = ({ assets, setAssets }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const [form, setForm] = useState<Asset>({
     id: '',
@@ -229,17 +231,59 @@ const AssetTracker: React.FC<AssetTrackerProps> = ({ assets, setAssets }) => {
     stopCamera();
   };
 
-  const startCamera = async () => {
-    setIsCameraActive(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+  useEffect(() => {
+    const initCamera = async () => {
+      if (isCameraActive && !form.photo) {
+        // Wait a bit to ensure videoRef is attached if it's not yet
+        if (!videoRef.current) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        if (!videoRef.current) return;
+
+        try {
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+          }
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: facingMode } 
+          });
+          streamRef.current = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.play().catch(e => console.error("Video play failed", e));
+          }
+        } catch (err) {
+          console.error("Camera access denied", err);
+          // Try fallback without facingMode if it failed
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            streamRef.current = stream;
+            if (videoRef.current) {
+              videoRef.current.srcObject = stream;
+              videoRef.current.play().catch(e => console.error("Video play failed", e));
+            }
+          } catch (fallbackErr) {
+            console.error("Fallback camera access denied", fallbackErr);
+            setIsCameraActive(false);
+          }
+        }
       }
-    } catch (err) {
-      console.error("Camera access denied", err);
-      setIsCameraActive(false);
-    }
+    };
+
+    initCamera();
+
+    return () => {
+      stopCamera();
+    };
+  }, [isCameraActive, form.photo, facingMode]);
+
+  const startCamera = () => {
+    setIsCameraActive(true);
+  };
+
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
   };
 
   const capturePhoto = () => {
@@ -251,15 +295,18 @@ const AssetTracker: React.FC<AssetTrackerProps> = ({ assets, setAssets }) => {
         context.drawImage(videoRef.current, 0, 0);
         const dataUrl = canvasRef.current.toDataURL('image/png');
         setForm({ ...form, photo: dataUrl });
+        setIsCameraActive(false);
         stopCamera();
       }
     }
   };
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach(track => track.stop());
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
@@ -528,7 +575,7 @@ const AssetTracker: React.FC<AssetTrackerProps> = ({ assets, setAssets }) => {
 
       {/* Lifecycle & History Modal */}
       {isHistoryModalOpen && historyAsset && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 md:p-6 bg-slate-900/80 backdrop-blur-xl overflow-y-auto no-scrollbar">
+        <div className="fixed inset-0 z-[150] flex items-start md:items-center justify-center p-2 md:p-6 bg-slate-900/80 backdrop-blur-xl overflow-y-auto no-scrollbar">
           <div className="bg-white w-full max-w-4xl rounded-[2rem] md:rounded-[3.5rem] shadow-2xl p-6 md:p-14 relative animate-in zoom-in slide-in-from-bottom-8 duration-500 my-4 md:my-8">
             <button 
               onClick={() => { setIsHistoryModalOpen(false); setHistoryAsset(null); }} 
@@ -647,8 +694,8 @@ const AssetTracker: React.FC<AssetTrackerProps> = ({ assets, setAssets }) => {
 
       {/* Manual Entry/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-2 md:p-6 bg-slate-900/70 backdrop-blur-xl overflow-y-auto no-scrollbar">
-          <div className="bg-white w-full max-w-5xl rounded-[2rem] md:rounded-[3.5rem] shadow-2xl p-6 md:p-14 relative animate-in zoom-in slide-in-from-bottom-8 duration-500 my-4 md:my-8">
+        <div className="fixed inset-0 z-[150] flex items-start md:items-center justify-center p-2 md:p-6 bg-slate-900/70 backdrop-blur-xl overflow-y-auto no-scrollbar">
+          <div className="bg-white w-full max-w-5xl rounded-[2rem] md:rounded-[3.5rem] shadow-2xl p-4 md:p-14 relative animate-in zoom-in slide-in-from-bottom-8 duration-500 my-4 md:my-8">
             <button 
               onClick={() => { setIsModalOpen(false); resetForm(); }} 
               className="absolute top-3 right-3 md:top-10 md:right-10 text-slate-600 hover:text-white hover:bg-indigo-600 transition-all p-2 md:p-3 rounded-xl md:rounded-2xl z-[90] bg-white shadow-xl border border-slate-100"
@@ -717,7 +764,17 @@ const AssetTracker: React.FC<AssetTrackerProps> = ({ assets, setAssets }) => {
                   
                   {isCameraActive ? (
                     <div className="w-full space-y-6">
-                      <video ref={videoRef} autoPlay playsInline className="w-full h-64 object-cover rounded-[2.5rem] border-4 border-white shadow-2xl" />
+                      <div className="relative">
+                        <video ref={videoRef} autoPlay playsInline className="w-full h-64 object-cover rounded-[2.5rem] border-4 border-white shadow-2xl" />
+                        <button 
+                          type="button" 
+                          onClick={toggleCamera}
+                          className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm p-2 rounded-xl shadow-lg border border-slate-100 text-indigo-600 hover:bg-white transition-all active:scale-95"
+                          title="Switch Camera"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M21 12c0-1.66-4-3-9-3s-9 1.34-9 3"/><path d="M3 5c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
+                        </button>
+                      </div>
                       <button type="button" onClick={capturePhoto} className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-indigo-700 transition transform active:scale-95">Snap Snapshot</button>
                     </div>
                   ) : form.photo ? (
@@ -760,8 +817,8 @@ const AssetTracker: React.FC<AssetTrackerProps> = ({ assets, setAssets }) => {
 
       {/* Bulk Import Modal */}
       {isImportModalOpen && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-2xl">
-          <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl p-14 relative animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 z-[150] flex items-start md:items-center justify-center p-2 md:p-6 bg-slate-900/80 backdrop-blur-2xl overflow-y-auto no-scrollbar">
+          <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl p-6 md:p-14 relative animate-in fade-in zoom-in duration-300 my-4 md:my-8">
             <button onClick={() => setIsImportModalOpen(false)} className="absolute top-12 right-12 text-slate-300 hover:text-slate-900 transition p-3 hover:bg-slate-50 rounded-3xl">
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
