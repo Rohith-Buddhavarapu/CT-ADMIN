@@ -1,5 +1,5 @@
 {
-  "name": " CT ADMIN 1",
+  "name": "CT ADMIN 1",
   "description": "An advanced administrative management suite featuring asset tracking, vendor management, BMS issue resolution, and visitor tracking with AI-powered insights.",
   "requestFramePermissions": [
     "camera"
