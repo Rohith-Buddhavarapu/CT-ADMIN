@@ -23,6 +23,7 @@ const BMSManager: React.FC<BMSManagerProps> = ({ issues, setIssues, user }) => {
   const [photo, setPhoto] = useState<string | null>(null);
   const [isClassifying, setIsClassifying] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -49,16 +50,40 @@ const BMSManager: React.FC<BMSManagerProps> = ({ issues, setIssues, user }) => {
 
   useEffect(() => {
     const initCamera = async () => {
-      if (isCameraActive && videoRef.current && !photo) {
+      if (isCameraActive && !photo) {
+        // Wait a bit to ensure videoRef is attached if it's not yet
+        if (!videoRef.current) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        if (!videoRef.current) return;
+
         try {
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+          }
           const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: 'environment' } 
+            video: { facingMode: facingMode } 
           });
           streamRef.current = stream;
-          videoRef.current.srcObject = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.play().catch(e => console.error("Video play failed", e));
+          }
         } catch (err) {
           console.error("Camera access denied", err);
-          setIsCameraActive(false);
+          // Try fallback without facingMode if it failed
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            streamRef.current = stream;
+            if (videoRef.current) {
+              videoRef.current.srcObject = stream;
+              videoRef.current.play().catch(e => console.error("Video play failed", e));
+            }
+          } catch (fallbackErr) {
+            console.error("Fallback camera access denied", fallbackErr);
+            setIsCameraActive(false);
+          }
         }
       }
     };
@@ -68,7 +93,11 @@ const BMSManager: React.FC<BMSManagerProps> = ({ issues, setIssues, user }) => {
     return () => {
       stopCamera();
     };
-  }, [isCameraActive, photo]);
+  }, [isCameraActive, photo, facingMode]);
+
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+  };
 
   const stopCamera = () => {
     if (streamRef.current) {
@@ -236,8 +265,8 @@ const BMSManager: React.FC<BMSManagerProps> = ({ issues, setIssues, user }) => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-start justify-center p-2 md:p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto no-scrollbar">
-          <div className="bg-white w-full max-w-5xl rounded-[2rem] md:rounded-[3rem] shadow-2xl p-6 md:p-12 relative animate-in zoom-in duration-300 my-4 md:my-8">
+        <div className="fixed inset-0 z-[150] flex items-start md:items-center justify-center p-2 md:p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto no-scrollbar">
+          <div className="bg-white w-full max-w-5xl rounded-[2rem] md:rounded-[3rem] shadow-2xl p-4 md:p-12 relative animate-in zoom-in duration-300 my-4 md:my-8">
             <button 
               onClick={() => { setIsModalOpen(false); stopCamera(); }} 
               className="absolute top-3 right-3 md:top-10 md:right-10 text-slate-500 hover:text-white hover:bg-indigo-600 transition-all p-2 md:p-3 rounded-xl md:rounded-2xl z-50 bg-white shadow-xl border border-slate-100"
@@ -301,7 +330,17 @@ const BMSManager: React.FC<BMSManagerProps> = ({ issues, setIssues, user }) => {
                   
                   {isCameraActive ? (
                     <div className="w-full h-full flex flex-col">
-                      <video ref={videoRef} autoPlay playsInline className="w-full h-48 object-cover rounded-2xl mb-4 border border-indigo-200 shadow-inner" />
+                      <div className="relative mb-4">
+                        <video ref={videoRef} autoPlay playsInline className="w-full h-48 object-cover rounded-2xl border border-indigo-200 shadow-inner" />
+                        <button 
+                          type="button" 
+                          onClick={toggleCamera}
+                          className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm p-2 rounded-xl shadow-lg border border-slate-100 text-indigo-600 hover:bg-white transition-all active:scale-95"
+                          title="Switch Camera"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M21 12c0-1.66-4-3-9-3s-9 1.34-9 3"/><path d="M3 5c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
+                        </button>
+                      </div>
                       <button onClick={capturePhoto} className="bg-indigo-600 text-white py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 transition">Capture Snapshot</button>
                     </div>
                   ) : photo ? (
