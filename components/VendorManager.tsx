@@ -214,8 +214,8 @@ const VendorManager: React.FC<VendorManagerProps> = ({ vendors, setVendors, user
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-2xl rounded-[2rem] md:rounded-[3rem] shadow-2xl p-6 md:p-12 relative overflow-y-auto max-h-[90vh] no-scrollbar">
+        <div className="fixed inset-0 z-[150] flex items-start md:items-center justify-center p-2 md:p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto no-scrollbar">
+          <div className="bg-white w-full max-w-2xl rounded-[2rem] md:rounded-[3rem] shadow-2xl p-4 md:p-12 relative overflow-y-auto max-h-[90vh] no-scrollbar my-4 md:my-8">
             <button 
               onClick={() => setIsModalOpen(false)} 
               className="absolute top-4 right-4 md:top-10 md:right-10 text-slate-500 hover:text-slate-900 transition p-3 hover:bg-slate-100 rounded-2xl z-50 bg-white/80 backdrop-blur-sm shadow-sm border border-slate-100"
