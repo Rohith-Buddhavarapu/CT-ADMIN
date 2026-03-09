@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { View, Asset, Vendor, BMSIssue, Visitor, Priority, IssueStatus, AuthUser } from './types';
 import Sidebar from './components/Sidebar';
@@ -8,6 +7,7 @@ import VendorManager from './components/VendorManager';
 import BMSManager from './components/BMSManager';
 import VisitorManager from './components/VisitorManager';
 import Login from './components/Login';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const INITIAL_ASSETS: Asset[] = [
   { 
@@ -76,6 +76,24 @@ const App: React.FC = () => {
   const [issues, setIssues] = useState<BMSIssue[]>(INITIAL_ISSUES);
   const [visitors, setVisitors] = useState<Visitor[]>(INITIAL_VISITORS);
 
+  const {
+    offlineReady: [offlineReady, setOfflineReady],
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegistered(r) {
+      console.log('SW Registered: ' + r);
+    },
+    onRegisterError(error) {
+      console.log('SW registration error', error);
+    },
+  });
+
+  const close = () => {
+    setOfflineReady(false);
+    setNeedRefresh(false);
+  };
+
   useEffect(() => {
     if (user && user.role === 'user' && (currentView === 'dashboard' || currentView === 'assets' || currentView === 'vendors')) {
       setCurrentView('bms');
@@ -143,9 +161,46 @@ const App: React.FC = () => {
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
           {renderView()}
         </div>
+
+        {(offlineReady || needRefresh) && (
+          <div className="fixed bottom-24 md:bottom-8 right-4 md:right-8 z-[200] animate-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-indigo-950 text-white p-6 rounded-3xl shadow-2xl border border-indigo-800 backdrop-blur-xl flex flex-col gap-4 max-w-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                </div>
+                <div>
+                  <p className="text-sm font-black tracking-tight uppercase">
+                    {offlineReady ? 'App Ready Offline' : 'Update Available'}
+                  </p>
+                  <p className="text-[10px] text-indigo-300 font-bold uppercase tracking-widest">
+                    {offlineReady ? 'System is cached' : 'New version detected'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {needRefresh && (
+                  <button 
+                    onClick={() => updateServiceWorker(true)}
+                    className="flex-1 bg-white text-indigo-950 py-2.5 rounded-xl text-xs font-black uppercase tracking-tighter hover:bg-indigo-50 transition shadow-lg"
+                  >
+                    Update
+                  </button>
+                )}
+                <button 
+                  onClick={close}
+                  className="flex-1 bg-indigo-900/50 text-indigo-200 py-2.5 rounded-xl text-xs font-black uppercase tracking-tighter hover:bg-indigo-900 transition border border-indigo-800"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
 };
 
 export default App;
+
