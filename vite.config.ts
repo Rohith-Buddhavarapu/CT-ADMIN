@@ -20,6 +20,8 @@ export default defineConfig(({ mode }) => {
             short_name: 'CT ADMIN',
             description: 'Enterprise Management System for Corporate Operations',
             theme_color: '#1e1b4b',
+            background_color: '#1e1b4b',
+            display: 'standalone',
             icons: [
               {
                 src: 'pwa-icon.svg',
