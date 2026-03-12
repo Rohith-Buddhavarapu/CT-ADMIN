@@ -235,13 +235,18 @@ const AssetTracker: React.FC<AssetTrackerProps> = ({ assets, setAssets }) => {
     const initCamera = async () => {
       if (isCameraActive && !form.photo) {
         // Wait a bit to ensure videoRef is attached if it's not yet
-        if (!videoRef.current) {
+        let attempts = 0;
+        while (!videoRef.current && attempts < 10) {
           await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
         }
         
-        if (!videoRef.current) return;
+        if (!videoRef.current || !isCameraActive) return;
 
         try {
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error("Camera API not available");
+          }
           if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
           }
@@ -765,14 +770,14 @@ const AssetTracker: React.FC<AssetTrackerProps> = ({ assets, setAssets }) => {
                   {isCameraActive ? (
                     <div className="w-full space-y-6">
                       <div className="relative">
-                        <video ref={videoRef} autoPlay playsInline className="w-full h-64 object-cover rounded-[2.5rem] border-4 border-white shadow-2xl" />
+                        <video ref={videoRef} autoPlay playsInline muted className="w-full h-64 object-cover rounded-[2.5rem] border-4 border-white shadow-2xl" />
                         <button 
                           type="button" 
                           onClick={toggleCamera}
                           className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm p-2 rounded-xl shadow-lg border border-slate-100 text-indigo-600 hover:bg-white transition-all active:scale-95"
                           title="Switch Camera"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M21 12c0-1.66-4-3-9-3s-9 1.34-9 3"/><path d="M3 5c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
                         </button>
                       </div>
                       <button type="button" onClick={capturePhoto} className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-indigo-700 transition transform active:scale-95">Snap Snapshot</button>
