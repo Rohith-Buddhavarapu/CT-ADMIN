@@ -270,6 +270,7 @@ const AssetTracker: React.FC<AssetTrackerProps> = ({ assets, setAssets }) => {
             }
           } catch (fallbackErr) {
             console.error("Fallback camera access denied", fallbackErr);
+            alert("Camera access denied. Please ensure you have granted camera permissions in your browser/device settings.");
             setIsCameraActive(false);
           }
         }
