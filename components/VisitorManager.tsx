@@ -105,6 +105,7 @@ const VisitorManager: React.FC<VisitorManagerProps> = ({ visitors, setVisitors, 
             }
           } catch (fallbackErr) {
             console.error("Fallback camera access denied", fallbackErr);
+            alert("Camera access denied. Please ensure you have granted camera permissions in your browser/device settings.");
             setIsCameraActive(false);
           }
         }
